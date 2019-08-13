@@ -4,7 +4,7 @@ import os
 
 def get_subcommand(command):
     from importlib import import_module
-    module = import_module("aristotle_mdr_cli.commands.%s" % command.lower())
+    module = import_module(".commands.%s" % command.lower(), package="aristotle_mdr_cli")
     return getattr(module, 'command')
 
 
