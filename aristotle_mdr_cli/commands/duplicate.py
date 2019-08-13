@@ -2,12 +2,13 @@ import click
 import json
 import requests
 import os
+from aristotle_mdr_cli.utils import AristotleCommand
 
 """
-I really wanted to call this parkes, after "Henry Parkes" Father of Federation.
+Copy all metadata from one registry to another
 """
 
-class FederaterV2(object):
+class Copy(AristotleCommand):
     object_order = [
         # ('aristotle_mdr_links','relation'),
         ('aristotle_mdr','objectclass'),
@@ -31,19 +32,17 @@ class FederaterV2(object):
 
     def __init__(self, origin, destination, api_version, origin_user, origin_password, destination_user, destination_password, models):
         self.origin = {
-            'url': origin.rstrip('/')+'/api/v2',
+            'url': origin.rstrip('/') + f"/api/v{api_version}",
             'username': origin_user,
             'password': origin_password,
         }
 
         self.destination = {
-            'url': destination.rstrip('/')+'/api/v3',
+            'url': destination.rstrip('/') + f"/api/v{api_version}",
             'username': destination_user,
             'password': destination_password,
         }
         self.models = models
-        print(self.origin)
-        print(self.destination)
 
     def federate(self):
         self.send_manifest()
@@ -146,7 +145,7 @@ class FederaterV2(object):
 @click.command()
 @click.option('--origin', '-O', help='Origin registry')
 @click.option('--destination', '-D', default='', help='Destination registry')
-@click.option('--api_version', default=2, help='API version')
+@click.option('--api_version', default=3, help='API version')
 @click.option('--origin_user', default=None, help='API origin username')
 @click.option('--origin_password', default=None, help='API origin password')
 @click.option('--destination_user', prompt=True, help='API destination username')
@@ -154,9 +153,7 @@ class FederaterV2(object):
 @click.option('--model', default=[], multiple=True, help='API destination password')
 def command(origin, destination, api_version, origin_user, origin_password, destination_user, destination_password, model):
     """
-    Send metadata from one registry to another.
-    
-    This is based on 
+    Copy all metadata from one registry to another
     """
     # r = send_request(manifest, api, user, password)
     # print(r.status_code, r.text)
@@ -164,8 +161,8 @@ def command(origin, destination, api_version, origin_user, origin_password, dest
     if models:
         models = [tuple(m.split(":",1)) for m in model]
     # response = requests.get(api)
-    fed = FederaterV2(origin, destination, api_version, origin_user, origin_password, destination_user, destination_password, models)
-    fed.federate()
+    cp = Copy(origin, destination, api_version, origin_user, origin_password, destination_user, destination_password, models)
+    cp.copy()
 
 
 if __name__ == "__main__":

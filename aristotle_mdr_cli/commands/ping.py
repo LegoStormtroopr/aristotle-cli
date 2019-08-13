@@ -6,8 +6,10 @@ import textwrap
 from socket import gaierror
 from requests.exceptions import ConnectionError
 from urllib3.exceptions import NewConnectionError
+from aristotle_mdr_cli.utils import AristotleCommand
 
-class Ping(object):
+
+class Ping(AristotleCommand):
     def __init__(self, origin, user=None, password=None):
         self.registry = {
             'base': origin,
