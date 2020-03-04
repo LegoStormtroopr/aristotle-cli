@@ -2,63 +2,61 @@ import click
 import json
 import requests
 import os
-from aristotle_mdr_cli.utils import AristotleCommand
+from aristotle_mdr_cli.utils import AristotleCommand, TokenAuth
 
 """
 Copy metadata from one registry to another
 """
 
 class Copy(AristotleCommand):
-    object_order = [
-        # ('aristotle_mdr_links','relation'),
-        ('aristotle_mdr','objectclass'),
-        ('aristotle_mdr','property'),
-        ('aristotle_mdr','conceptualdomain'),
-        ('aristotle_mdr','datatype'),
-        ('aristotle_mdr','unitofmeasure'),
-        ('aristotle_mdr','valuedomain'),
-        ('aristotle_mdr','dataelementconcept'),
-        ('aristotle_mdr','dataelement'),
-        ('aristotle_dse','distribution'),
-        ('aristotle_dse','dataset'),
-        ('aristotle_dse','datasetspecification'),
-        ('aristotle_glossary','glossaryitem'),
-        ('comet','indicator'),
-        ('comet','indicatorset'),
-        ('comet','outcomearea'),
-        ('comet','framework'),
-        ('mallard_qr','question'),
-    ]
+    def __init__(self, origin, destination, uuid, explode=False):
+        origin = self.ac_url(origin)
+        destination = self.ac_url(destination)
+        self.uuid = uuid
+        self.explode = explode
 
-    def __init__(self, origin, destination, api_version, origin_user, origin_password, destination_user, destination_password, models):
         self.origin = {
-            'url': origin.rstrip('/') + f"/api/v{api_version}",
-            'username': origin_user,
-            'password': origin_password,
+            'url': origin.rstrip('/') + f"/api/v3",
+            'auth': self.get_auth(origin),
         }
 
         self.destination = {
-            'url': destination.rstrip('/') + f"/api/v{api_version}",
-            'username': destination_user,
-            'password': destination_password,
+            'url': destination.rstrip('/') + f"/api/v3",
+            'auth': self.get_auth(destination),
         }
-        self.models = models
 
     def copy(self):
-        self.send_manifest()
-        print(self.models)
-        for m in self.models:
-            print(m in self.object_order)
-        for obj_type in self.object_order:
-            if len(self.models) == 0 or obj_type in self.models:
-                print("Requesting {} from {}".format(obj_type, self.origin))
-                for obj in self.get_metadata_items_from_origin(obj_type):
-                    print(obj['uuid'])
-                    r = self.send_metadata_item_to_destination(obj)
-                    # print("About to send: ", f)
-                    # file_to_send = os.path.join(directory,f)
-                    # r = send_request(file_to_send, api, user, password)
-                    print("   -- Sent. Response", r.status_code, r.text)
+        # self.send_manifest()
+        url = self.origin['url']+'/metadata/' + self.uuid + "/"
+        # origin_token = 
+        params = {"explode": self.explode}
+        response = requests.get(
+            url,
+            auth=TokenAuth(self.origin['auth']),
+            headers={
+                "accept": "application/json",
+            }
+        )
+        print(response)
+        print(response.json())
+        data = response.json()
+        data['fields'].pop('superseded_by', None)
+        params = {}
+        if self.explode:
+            params.update({"explode": True})
+        response = requests.post(
+            self.destination['url']+'/metadata/', # + self.uuid + "/"
+            auth=TokenAuth(self.destination['auth']),
+            params=params,
+            json=data
+        )
+        print(response.request.headers)
+        print(response)
+        print(response.text)
+
+    @classmethod
+    def run(cls, *args, **kwargs):
+        cls(*args, **kwargs).copy()
 
     def send_manifest(self):
         print("Creating manifest")
@@ -143,27 +141,22 @@ class Copy(AristotleCommand):
                 break
 
 @click.command()
-@click.option('--origin', '-O', help='Origin registry')
-@click.option('--destination', '-D', default='', help='Destination registry')
+# @click.option('--origin', '-O', help='Origin registry')
+# @click.option('--destination', '-D', help='Destination registry')
+@click.argument('origin') #, '-O', help='Origin registry')
+@click.argument('destination') #, '-D', help='Destination registry')
+@click.argument('uuid') #, default=None, help='UUID of item to fetch')
 @click.option('--api_version', default=3, help='API version')
-@click.option('--origin_user', default=None, help='API origin username')
-@click.option('--origin_password', default=None, help='API origin password')
-@click.option('--destination_user', prompt=True, help='API destination username')
-@click.option('--destination_password', prompt=True, hide_input=True, help='API destination password')
-@click.option('--uuid', default=None, help='UUID of item to fetch')
-@click.option('--uuid_file', default=None, help='File with a list of UUIDs to fetch.')
-def command(origin, destination, api_version, origin_user, origin_password, destination_user, destination_password, uuid):
+# @click.option('--uuid', default=None, help='UUID of item to fetch')
+@click.option('--explode', '-X', is_flag=True, help='UUID of item to fetch')
+# @click.option('--uuid_file', default=None, help='File with a list of UUIDs to fetch.')
+def command(origin, destination, api_version, uuid, explode):
     """
-    Copy metadata from one registry to another
+    Copy metadata from one registry to another.
+    V3 API only
     """
-    # r = send_request(manifest, api, user, password)
-    # print(r.status_code, r.text)
-    models = model
-    if models:
-        models = [tuple(m.split(":",1)) for m in model]
-    # response = requests.get(api)
-    cp = Copy(origin, destination, api_version, origin_user, origin_password, destination_user, destination_password, uuid)
-    cp.copy()
+    cp = Copy.run(origin, destination, uuid, explode=explode)
+    # cp.copy()
 
 
 if __name__ == "__main__":
